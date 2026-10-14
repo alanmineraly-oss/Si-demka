@@ -1,0 +1,45 @@
+name: Build BumbasOS
+
+on:
+  workflow_dispatch:
+  push:
+    paths:
+      - "BumbasOS_v0.1_source_REPLACEMENT.zip"
+      - ".github/workflows/build.yml"
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Install PlatformIO
+        run: pip install platformio
+
+      - name: Extract source
+        run: |
+          mkdir source
+          unzip -q BumbasOS_v0.1_source_REPLACEMENT.zip -d source
+          INI=$(find source -name platformio.ini -print -quit)
+          if [ -z "$INI" ]; then
+            echo "Nie znaleziono platformio.ini"
+            exit 1
+          fi
+          echo "PROJECT_DIR=$(dirname "$INI")" >> "$GITHUB_ENV"
+
+      - name: Compile firmware
+        run: pio run -d "$PROJECT_DIR"
+
+      - name: Collect firmware
+        run: |
+          mkdir output
+          find "$PROJECT_DIR/.pio/build" -name '*.bin' -exec cp {} output/ \;
+          ls -lh output
+
+      - name: Upload firmware
+        uses: actions/upload-artifact@v4
+        with:
+          name: BumbasOS-firmware
+          path: output/*.bin
+          if-no-files-found: error
